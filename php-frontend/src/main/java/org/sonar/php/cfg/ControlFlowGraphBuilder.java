@@ -169,6 +169,8 @@ class ControlFlowGraphBuilder {
       case INTERFACE_DECLARATION:
       case TRAIT_DECLARATION:
       case EXPRESSION_STATEMENT:
+      case USE_STATEMENT:
+      case NAMESPACE_STATEMENT:
         currentBlock.addElement(tree);
         return currentBlock;
       case INLINE_HTML:

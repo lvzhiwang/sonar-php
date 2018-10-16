@@ -22,8 +22,15 @@ package org.sonar.php.cfg;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import javax.annotation.CheckForNull;
 import org.sonar.plugins.php.api.tree.ScriptTree;
+import org.sonar.plugins.php.api.tree.Tree;
+import org.sonar.plugins.php.api.tree.declaration.FunctionDeclarationTree;
+import org.sonar.plugins.php.api.tree.declaration.MethodDeclarationTree;
+import org.sonar.plugins.php.api.tree.expression.FunctionExpressionTree;
 import org.sonar.plugins.php.api.tree.statement.BlockTree;
+
+import static org.sonar.php.tree.TreeUtils.findParentWithKind;
 
 /**
  * The <a href="https://en.wikipedia.org/wiki/Control_flow_graph">Control Flow Graph</a>
@@ -36,10 +43,9 @@ import org.sonar.plugins.php.api.tree.statement.BlockTree;
  * <li>zero or more predecessor blocks.</li>
  * </ul>
  * </p>
- *
+ * <p>
  * A Control Flow Graph has a single start node and a single end node.
  * The end node has no successor and no element.
- *
  */
 public class ControlFlowGraph {
 
@@ -59,6 +65,35 @@ public class ControlFlowGraph {
 
   public static ControlFlowGraph build(ScriptTree scriptTree) {
     return new ControlFlowGraphBuilder(scriptTree.statements()).getGraph();
+  }
+
+  @CheckForNull
+  public static ControlFlowGraph findCFG(Tree tree) {
+    Tree treeWithFlow = findParentWithKind(tree,
+      Tree.Kind.FUNCTION_DECLARATION,
+      Tree.Kind.FUNCTION_EXPRESSION,
+      Tree.Kind.METHOD_DECLARATION,
+      Tree.Kind.SCRIPT);
+    if (treeWithFlow == null) {
+      return null;
+    }
+    switch (treeWithFlow.getKind()) {
+      case FUNCTION_DECLARATION:
+        return build(((FunctionDeclarationTree) treeWithFlow).body());
+      case FUNCTION_EXPRESSION:
+        return build(((FunctionExpressionTree) treeWithFlow).body());
+      case METHOD_DECLARATION:
+        Tree body = ((MethodDeclarationTree) treeWithFlow).body();
+        if (body.is(Tree.Kind.BLOCK)) {
+          return build(((BlockTree) body));
+        } else {
+          return null;
+        }
+      case SCRIPT:
+        return build(((ScriptTree) treeWithFlow));
+      default:
+        return null;
+    }
   }
 
   public CfgBlock start() {
